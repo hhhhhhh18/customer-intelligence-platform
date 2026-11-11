@@ -1,0 +1,45 @@
+{
+  "name": "@cip/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "db:generate": "prisma generate --schema ../database/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema ../database/prisma/schema.prisma",
+    "db:push": "prisma db push --schema ../database/prisma/schema.prisma",
+    "db:seed": "tsx src/scripts/seed-reference.ts",
+    "data:load": "tsx src/scripts/load-dataset.ts",
+    "pipeline": "tsx src/scripts/run-full-pipeline.ts",
+    "segmentation:run": "tsx src/scripts/run-segmentation.ts",
+    "recommendations:run": "tsx src/scripts/run-recommendations.ts",
+    "validate": "tsx src/scripts/run-validation.ts",
+    "inject:anomalies": "tsx src/scripts/inject-anomalies.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1",
+    "pg-copy-streams": "^6.0.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "@types/supertest": "^6.0.2",
+    "prisma": "^6.7.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

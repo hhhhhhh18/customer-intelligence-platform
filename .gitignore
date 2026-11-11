@@ -1,0 +1,99 @@
+# ---------------------------------------------------------------------------
+# Secrets and environment
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+database/prisma/.env
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials.json
+
+# ---------------------------------------------------------------------------
+# Local PostgreSQL cluster (private database files, ~120 MB)
+# ---------------------------------------------------------------------------
+.pgdata/
+pgdata/
+*.pgdump
+*.dump
+*.sql.gz
+
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/install-state.gz
+
+# ---------------------------------------------------------------------------
+# Build outputs and generated types
+# ---------------------------------------------------------------------------
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+backend/generated/prisma/
+backend/src/generated/prisma/
+
+# ---------------------------------------------------------------------------
+# Generated datasets (regenerate with: python data-engine/main.py --profile small)
+# Ground truth is kept in version control because it documents the labels.
+# ---------------------------------------------------------------------------
+data-engine/exports/*
+!data-engine/exports/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Testing and coverage
+# ---------------------------------------------------------------------------
+coverage/
+.nyc_output/
+.vitest/
+test-results/
+playwright-report/
+
+# ---------------------------------------------------------------------------
+# Logs and runtime artefacts
+# ---------------------------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.pid
+server.log
+
+# ---------------------------------------------------------------------------
+# OS / editor
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+

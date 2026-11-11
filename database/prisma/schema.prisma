@@ -1,0 +1,762 @@
+// Customer Intelligence & Action Recommendation Platform
+// Canonical Prisma schema. Location: database/prisma/schema.prisma
+// Generated client output: backend/generated/prisma (see generator block)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../backend/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------------------------
+
+enum CustomerLifecycleStatus {
+  ACTIVE
+  DORMANT
+  CHURNED
+  BLOCKED
+}
+
+enum SalesChannel {
+  WEB
+  MOBILE_APP
+  STORE
+  PHONE
+  MARKETPLACE
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  RETURNED
+  PARTIALLY_RETURNED
+}
+
+enum EngagementEventType {
+  SESSION_START
+  PAGE_VIEW
+  PRODUCT_VIEW
+  SEARCH
+  ADD_TO_CART
+  CHECKOUT_START
+  PURCHASE
+  EMAIL_OPEN
+  EMAIL_CLICK
+  PUSH_OPEN
+  SMS_CLICK
+  APP_OPEN
+  SUPPORT_VISIT
+  UNSUBSCRIBE_CLICK
+}
+
+enum EngagementChannel {
+  WEB
+  APP
+  EMAIL
+  SMS
+  PUSH
+  PHONE
+}
+
+enum SupportCaseStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum SupportPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SupportCategory {
+  BILLING
+  DELIVERY
+  PRODUCT_QUALITY
+  RETURNS
+  ACCOUNT
+  TECHNICAL
+  OTHER
+}
+
+enum ConsentChannel {
+  EMAIL
+  SMS
+  PUSH
+  PHONE
+  DIRECT_MAIL
+}
+
+enum ConsentPurpose {
+  MARKETING
+  TRANSACTIONAL
+  ANALYTICS
+  PROFILING
+}
+
+enum ConsentStatus {
+  GRANTED
+  WITHDRAWN
+  PENDING
+  EXPIRED
+}
+
+enum SegmentCategory {
+  VALUE
+  LIFECYCLE
+  RISK
+  SERVICE
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  SUPERSEDED
+  CONFLICT_FLAGGED
+}
+
+enum ActionType {
+  LOYALTY_REWARD
+  PROMOTIONAL_DISCOUNT
+  RE_ENGAGEMENT
+  WELCOME_ONBOARDING
+  PRODUCT_RECOMMENDATION
+  SUPPORT_FOLLOW_UP
+  RETENTION_INTERVENTION
+  NO_ACTION
+}
+
+enum RecommendationEligibility {
+  ELIGIBLE
+  INELIGIBLE
+  SUPPRESSED
+  NO_ACTION
+}
+
+enum SuppressionResult {
+  NOT_SUPPRESSED
+  SUPPRESSED_CONSENT
+  SUPPRESSED_CONTACT_PREFERENCE
+  SUPPRESSED_OPEN_SUPPORT_CASE
+  SUPPRESSED_RECENT_CONTACT
+  SUPPRESSED_ACTIVE_COMPLAINT
+}
+
+enum RecommendationStatus {
+  PENDING
+  ACCEPTED
+  COMPLETED
+  DISMISSED
+  EXPIRED
+  SUPPRESSED
+}
+
+enum OutcomeStatus {
+  PENDING
+  SUCCESS
+  FAILURE
+  NO_RESPONSE
+  UNATTRIBUTED
+}
+
+enum ExceptionCategory {
+  SEGMENT_CONFLICT
+  CONSENT_VIOLATION
+  RETURN_NOT_NETTED
+  OUTCOME_ATTRIBUTION
+  REFERENTIAL_INTEGRITY
+  DUPLICATE_RECORD
+  ARITHMETIC_MISMATCH
+  ENUM_VIOLATION
+  ID_FORMAT
+  CONSENT_LIFECYCLE
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ExceptionStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  IGNORED
+}
+
+enum CheckOutcome {
+  PASS
+  WARNING
+  FAIL
+}
+
+enum GenerationProfile {
+  SMALL
+  MEDIUM
+  FULL
+}
+
+enum RunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 1: CUSTOMER
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id             Int                     @id @default(autoincrement())
+  customerCode   String                  @unique @db.VarChar(20)
+  firstName      String                  @db.VarChar(80)
+  lastName       String                  @db.VarChar(80)
+  email          String                  @unique @db.VarChar(180)
+  phone          String?                 @db.VarChar(40)
+  country        String                  @db.VarChar(56)
+  city           String                  @db.VarChar(80)
+  region         String                  @db.VarChar(80)
+  signupDate     DateTime                @db.Date
+  birthDate      DateTime?               @db.Date
+  lifecycle      CustomerLifecycleStatus @default(ACTIVE)
+  acquisition    String                  @db.VarChar(40)
+  loyaltyTier    String?                 @db.VarChar(20)
+  preferredChannel EngagementChannel? // last known contact preference channel
+  createdAt      DateTime                @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime                @default(now()) @updatedAt @db.Timestamp(6)
+
+  orders          Order[]
+  orderLines      OrderLine[]
+  engagementEvents EngagementEvent[]
+  supportCases    SupportCase[]
+  consents        Consent[]
+  memberships     SegmentMembership[]
+  recommendations Recommendation[]
+  outcomes        ActionOutcome[]
+  exceptions      ExceptionRecord[]
+  auditEvents     AuditEvent[]
+
+  @@index([lastName, firstName])
+  @@index([signupDate])
+  @@index([lifecycle])
+  @@map("customers")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 4: PRODUCT (+ taxonomy)
+// ---------------------------------------------------------------------------
+
+model ProductCategory {
+  id        Int               @id @default(autoincrement())
+  code      String            @unique @db.VarChar(20)
+  name      String            @db.VarChar(80)
+  parentId  Int?
+  parent    ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  ProductCategory[] @relation("CategoryTree")
+  products  Product[]
+  createdAt DateTime          @default(now()) @db.Timestamp(6)
+
+  @@index([parentId])
+  @@map("product_categories")
+}
+
+model Product {
+  id          Int             @id @default(autoincrement())
+  productCode String          @unique @db.VarChar(20)
+  name        String          @db.VarChar(140)
+  categoryId  Int
+  category    ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  brand       String          @db.VarChar(60)
+  unitPrice   Decimal         @db.Decimal(12, 2)
+  unitCost    Decimal         @db.Decimal(12, 2)
+  isReturnable Boolean        @default(true)
+  launchDate  DateTime        @db.Date
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime        @default(now()) @updatedAt @db.Timestamp(6)
+
+  orderLines  OrderLine[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("products")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 2: ORDER
+// ---------------------------------------------------------------------------
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  orderCode       String      @unique @db.VarChar(24)
+  customerId      Int
+  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  orderDate       DateTime    @db.Date
+  status          OrderStatus
+  channel         SalesChannel
+  currency        String      @default("INR") @db.VarChar(3)
+  subtotal        Decimal     @db.Decimal(14, 2)
+  discountAmount  Decimal     @default(0) @db.Decimal(14, 2)
+  shippingAmount  Decimal     @default(0) @db.Decimal(14, 2)
+  taxAmount       Decimal     @default(0) @db.Decimal(14, 2)
+  grossTotal      Decimal     @db.Decimal(14, 2)
+  returnedAmount  Decimal     @default(0) @db.Decimal(14, 2)
+  netTotal        Decimal     @db.Decimal(14, 2)
+  itemCount       Int
+  returnReason    String?     @db.VarChar(120)
+  campaignId      String?     @db.VarChar(32)
+  createdAt       DateTime    @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime    @default(now()) @updatedAt @db.Timestamp(6)
+
+  orderLines      OrderLine[]
+  outcomes        ActionOutcome[]
+
+  @@index([customerId, orderDate])
+  @@index([orderDate])
+  @@index([status])
+  @@map("orders")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 3: ORDER LINE
+// ---------------------------------------------------------------------------
+
+model OrderLine {
+  id               Int      @id @default(autoincrement())
+  orderId          Int
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        Int
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  customerId       Int
+  customer         Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lineNumber       Int
+  quantity         Int
+  unitPrice        Decimal  @db.Decimal(12, 2)
+  lineDiscount     Decimal  @default(0) @db.Decimal(14, 2)
+  lineTotal        Decimal  @db.Decimal(14, 2)
+  returnedQuantity Int      @default(0)
+  refundAmount     Decimal  @default(0) @db.Decimal(14, 2)
+  netLineTotal     Decimal  @db.Decimal(14, 2)
+
+  @@unique([orderId, lineNumber])
+  @@index([orderId])
+  @@index([productId])
+  @@index([customerId])
+  @@map("order_lines")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 5: ENGAGEMENT EVENT
+// ---------------------------------------------------------------------------
+
+model EngagementEvent {
+  id          BigInt            @id @default(autoincrement())
+  customerId  Int
+  customer    Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  eventType   EngagementEventType
+  channel     EngagementChannel
+  sessionId   String            @db.VarChar(40)
+  occurredAt  DateTime          @db.Timestamp(6)
+  pagePath    String?           @db.VarChar(160)
+  deviceType  String?           @db.VarChar(24)
+  campaignId  String?           @db.VarChar(32)
+  metadata    Json?
+  createdAt   DateTime          @default(now()) @db.Timestamp(6)
+
+  @@index([customerId, occurredAt])
+  @@index([eventType])
+  @@index([occurredAt])
+  @@map("engagement_events")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 6: SUPPORT CASE
+// ---------------------------------------------------------------------------
+
+model SupportCase {
+  id              Int               @id @default(autoincrement())
+  caseCode        String            @unique @db.VarChar(24)
+  customerId      Int
+  customer        Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  openedAt        DateTime          @db.Timestamp(6)
+  closedAt        DateTime?         @db.Timestamp(6)
+  status          SupportCaseStatus
+  priority        SupportPriority
+  category        SupportCategory
+  channel         EngagementChannel
+  subject         String            @db.VarChar(160)
+  isEscalated     Boolean           @default(false)
+  handlingCost    Decimal           @default(0) @db.Decimal(12, 2)
+  satisfactionScore Int?            // 1..5
+  resolutionNotes String?
+  createdAt       DateTime          @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime          @default(now()) @updatedAt @db.Timestamp(6)
+
+  @@index([customerId, openedAt])
+  @@index([status])
+  @@map("support_cases")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 7: CONSENT (append-only history)
+// ---------------------------------------------------------------------------
+
+model Consent {
+  id             Int             @id @default(autoincrement())
+  consentCode    String          @unique @db.VarChar(28)
+  customerId     Int
+  customer       Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  channel        ConsentChannel
+  purpose        ConsentPurpose
+  status         ConsentStatus
+  source         String          @db.VarChar(60)
+  effectiveFrom  DateTime        @db.Timestamp(6)
+  effectiveTo    DateTime?       @db.Timestamp(6)
+  withdrawnAt    DateTime?       @db.Timestamp(6)
+  recordedAt     DateTime        @default(now()) @db.Timestamp(6)
+  notes          String?
+  createdAt      DateTime        @default(now()) @db.Timestamp(6)
+
+  @@unique([customerId, channel, purpose, effectiveFrom])
+  @@index([customerId, purpose, channel])
+  @@index([status])
+  @@map("consents")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 8: SEGMENT RULE
+// ---------------------------------------------------------------------------
+
+model SegmentRule {
+  id            Int             @id @default(autoincrement())
+  segmentCode   String          @unique @db.VarChar(24)
+  slug          String          @unique @db.VarChar(48)
+  name          String          @db.VarChar(80)
+  description   String
+  category      SegmentCategory
+  priority      Int
+  isExclusive   Boolean         @default(true)
+  ruleVersion   String          @db.VarChar(20)
+  criteria      Json            // machine-readable threshold definition
+  explanation   String          // human readable rule description
+  isActive      Boolean         @default(true)
+  effectiveFrom DateTime        @default(now()) @db.Timestamp(6)
+  createdAt     DateTime        @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime        @default(now()) @updatedAt @db.Timestamp(6)
+
+  memberships   SegmentMembership[]
+  recommendations Recommendation[]
+
+  @@index([priority])
+  @@map("segment_rules")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 9: SEGMENT MEMBERSHIP (historical, never overwritten)
+// ---------------------------------------------------------------------------
+
+model SegmentMembership {
+  id                  Int              @id @default(autoincrement())
+  membershipCode      String           @unique @db.VarChar(60)
+  segmentId           Int
+  segment             SegmentRule      @relation(fields: [segmentId], references: [id], onDelete: Restrict)
+  customerId          Int
+  customer            Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  assignedAt          DateTime         @db.Timestamp(6)
+  effectiveFrom       DateTime         @db.Timestamp(6)
+  effectiveTo         DateTime?        @db.Timestamp(6)
+  status              MembershipStatus @default(ACTIVE)
+  ruleVersion         String           @db.VarChar(20)
+  recencyDays         Int
+  frequency           Int
+  monetary            Decimal          @db.Decimal(14, 2)
+  rScore              Int
+  fScore              Int
+  mScore              Int
+  rfmScore            Int
+  serviceCost         Decimal          @default(0) @db.Decimal(12, 2)
+  assignmentReason    String
+  decisionInputs      Json
+  isExclusiveConflict Boolean          @default(false)
+  createdAt           DateTime         @default(now()) @db.Timestamp(6)
+
+  @@unique([segmentId, customerId, effectiveFrom])
+  @@index([customerId, status])
+  @@index([segmentId, status])
+  @@map("segment_memberships")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 10: ACTION CATALOG
+// ---------------------------------------------------------------------------
+
+model ActionCatalog {
+  id                    Int        @id @default(autoincrement())
+  actionCode            String     @unique @db.VarChar(24)
+  slug                  String     @unique @db.VarChar(48)
+  name                  String     @db.VarChar(100)
+  description           String
+  actionType            ActionType
+  channel               EngagementChannel
+  isPromotional         Boolean    @default(false)
+  requiresMarketingConsent Boolean @default(false)
+  costPerContact        Decimal    @default(0) @db.Decimal(10, 2)
+  expectedValue         Decimal    @default(0) @db.Decimal(10, 2)
+  priority              Int
+  eligibilityRules      Json
+  suppressionRules      Json
+  isActive              Boolean    @default(true)
+  createdAt             DateTime   @default(now()) @db.Timestamp(6)
+  updatedAt             DateTime   @default(now()) @updatedAt @db.Timestamp(6)
+
+  recommendations       Recommendation[]
+  outcomes              ActionOutcome[]
+
+  @@index([actionType])
+  @@map("action_catalog")
+}
+
+// ---------------------------------------------------------------------------
+// SUPPORTING: RECOMMENDATION + REASONS
+// ---------------------------------------------------------------------------
+
+model Recommendation {
+  id                 Int                     @id @default(autoincrement())
+  recommendationCode String                  @unique @db.VarChar(28)
+  customerId         Int
+  customer           Customer                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  segmentId          Int?
+  segment            SegmentRule?            @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  actionId           Int
+  action             ActionCatalog           @relation(fields: [actionId], references: [id], onDelete: Restrict)
+  runId              String                  @db.VarChar(32)
+  recommendedAt      DateTime                @db.Timestamp(6)
+  eligibility        RecommendationEligibility
+  suppressionResult  SuppressionResult       @default(NOT_SUPPRESSED)
+  status             RecommendationStatus    @default(PENDING)
+  score              Decimal                 @default(0) @db.Decimal(8, 3)
+  explanation        String
+  inputMetrics       Json
+  ruleVersion        String                  @db.VarChar(20)
+  sourcePipeline     String                  @default("recommendation-engine-v1") @db.VarChar(48)
+  createdAt          DateTime                @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime                @default(now()) @updatedAt @db.Timestamp(6)
+
+  reasons            RecommendationReason[]
+  outcomes           ActionOutcome[]
+  exceptions         ExceptionRecord[]
+
+  @@unique([customerId, runId, actionId])
+  @@index([customerId, recommendedAt])
+  @@index([eligibility, suppressionResult])
+  @@index([actionId])
+  @@index([segmentId])
+  @@map("recommendations")
+}
+
+model RecommendationReason {
+  id               Int            @id @default(autoincrement())
+  recommendationId Int
+  recommendation   Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  reasonCode       String         @db.VarChar(48)
+  label            String         @db.VarChar(140)
+  detail           String
+  metricName       String?        @db.VarChar(48)
+  metricValue      Decimal?       @db.Decimal(14, 2)
+  thresholdValue   Decimal?       @db.Decimal(14, 2)
+  weight           Decimal        @default(1) @db.Decimal(6, 2)
+  createdAt        DateTime       @default(now()) @db.Timestamp(6)
+
+  @@index([recommendationId])
+  @@map("recommendation_reasons")
+}
+
+// ---------------------------------------------------------------------------
+// CORE ENTITY 11: ACTION OUTCOME
+// ---------------------------------------------------------------------------
+
+model ActionOutcome {
+  id               Int            @id @default(autoincrement())
+  outcomeCode      String         @unique @db.VarChar(28)
+  recommendationId Int
+  recommendation   Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Restrict)
+  customerId       Int
+  customer         Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  actionId         Int            // as recorded by the downstream system (may be wrong -> Case 4)
+  action           ActionCatalog  @relation(fields: [actionId], references: [id], onDelete: Restrict)
+  orderId          Int?
+  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  status           OutcomeStatus
+  respondedAt      DateTime?      @db.Timestamp(6)
+  completedAt      DateTime?      @db.Timestamp(6)
+  revenueAttributed Decimal       @default(0) @db.Decimal(14, 2)
+  channel          EngagementChannel
+  notes            String?
+  isAttributionValid Boolean      @default(true)
+  createdAt        DateTime       @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime       @default(now()) @updatedAt @db.Timestamp(6)
+
+  @@index([recommendationId])
+  @@index([customerId])
+  @@index([status])
+  @@map("action_outcomes")
+}
+
+// ---------------------------------------------------------------------------
+// SUPPORTING: EXCEPTIONS
+// ---------------------------------------------------------------------------
+
+model ExceptionRecord {
+  id              Int              @id @default(autoincrement())
+  exceptionCode   String           @unique @db.VarChar(28)
+  category        ExceptionCategory
+  severity        Severity
+  entityType      String           @db.VarChar(40)
+  entityId        String           @db.VarChar(64)
+  customerId      Int?
+  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  recommendationId Int?
+  recommendation  Recommendation?  @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
+  expectedValue   String?          @db.VarChar(240)
+  actualValue     String?          @db.VarChar(240)
+  explanation     String
+  detectionRuleId String           @db.VarChar(40)
+  detectedAt      DateTime         @default(now()) @db.Timestamp(6)
+  status          ExceptionStatus  @default(OPEN)
+  resolvedAt      DateTime?        @db.Timestamp(6)
+  resolutionNotes String?
+  evidence        Json
+  groundTruthRef  String?          @db.VarChar(40)  // pointer only; labels never feed engines
+
+  @@unique([category, entityType, entityId, detectionRuleId])
+  @@index([category, status])
+  @@index([customerId])
+  @@map("exception_records")
+}
+
+// ---------------------------------------------------------------------------
+// SUPPORTING: AUDIT, DATA QUALITY, RUNS
+// ---------------------------------------------------------------------------
+
+model AuditEvent {
+  id          BigInt   @id @default(autoincrement())
+  actor       String   @db.VarChar(60)
+  action      String   @db.VarChar(80)
+  entityType  String   @db.VarChar(40)
+  entityId    String   @db.VarChar(64)
+  customerId  Int?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  correlationId String? @db.VarChar(40)
+  payload     Json
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_events")
+}
+
+model GenerationRun {
+  id            Int              @id @default(autoincrement())
+  runCode       String           @unique @db.VarChar(32)
+  profile       GenerationProfile
+  seed          Int
+  referenceDate DateTime         @db.Date
+  customerCount Int
+  orderCount    Int
+  eventCount    Int
+  status        RunStatus        @default(RUNNING)
+  datasetHash   String?          @db.VarChar(80)
+  config        Json
+  startedAt     DateTime         @default(now()) @db.Timestamp(6)
+  completedAt   DateTime?        @db.Timestamp(6)
+
+  @@map("generation_runs")
+}
+
+model SegmentationRun {
+  id                 Int      @id @default(autoincrement())
+  runCode            String   @unique @db.VarChar(32)
+  ruleVersion        String   @db.VarChar(20)
+  asOfDate           DateTime @db.Date
+  customersScored    Int
+  membershipsCreated Int
+  conflictsDetected  Int
+  unassignedCount    Int
+  status             RunStatus @default(RUNNING)
+  startedAt          DateTime @default(now()) @db.Timestamp(6)
+  completedAt        DateTime? @db.Timestamp(6)
+
+  @@map("segmentation_runs")
+}
+
+model RecommendationRun {
+  id                  Int      @id @default(autoincrement())
+  runCode             String   @unique @db.VarChar(32)
+  ruleVersion         String   @db.VarChar(20)
+  asOfDate            DateTime @db.Date
+  processed           Int
+  eligibleCount       Int
+  suppressedCount     Int
+  noActionCount       Int
+  status              RunStatus @default(RUNNING)
+  startedAt           DateTime @default(now()) @db.Timestamp(6)
+  completedAt         DateTime? @db.Timestamp(6)
+
+  @@map("recommendation_runs")
+}
+
+model DataQualityRun {
+  id                  Int       @id @default(autoincrement())
+  runCode             String    @unique @db.VarChar(32)
+  startedAt           DateTime  @default(now()) @db.Timestamp(6)
+  completedAt         DateTime? @db.Timestamp(6)
+  totalRecordsChecked Int
+  checksPassed        Int
+  checksFailed        Int
+  warningCount        Int
+  exceptionCount      Int
+  score               Decimal   @db.Decimal(5, 2)
+  datasetProfile      String?   @db.VarChar(20)
+  seed                Int?
+  summary             Json
+
+  issues              DataQualityIssue[]
+
+  @@map("data_quality_runs")
+}
+
+model DataQualityIssue {
+  id          Int            @id @default(autoincrement())
+  runId       Int
+  run         DataQualityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  ruleId      String         @db.VarChar(40)
+  category    String         @db.VarChar(40)
+  outcome     CheckOutcome
+  severity    Severity
+  entityType  String         @db.VarChar(40)
+  entityId    String?        @db.VarChar(64)
+  message     String
+  expected    String?        @db.VarChar(240)
+  actual      String?        @db.VarChar(240)
+  checkedAt   DateTime       @default(now()) @db.Timestamp(6)
+
+  @@index([runId, outcome])
+  @@index([ruleId])
+  @@map("data_quality_issues")
+}
+
+
+

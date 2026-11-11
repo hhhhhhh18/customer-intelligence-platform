@@ -1,0 +1,40 @@
+{
+  "case1_segment_conflict": {
+    "anomalyId": "GT-SEG-CONFLICT-001",
+    "customerId": 17,
+    "customerCode": "CUS-000017",
+    "primarySegmentSlug": "loyal-customers",
+    "secondarySegmentSlug": "champions",
+    "explanation": "A legacy import wrote a second ACTIVE membership for an exclusive segment. A customer may hold at most one active exclusive segment, so the pair is invalid.",
+    "injection": "Second ACTIVE SegmentMembership row inserted with ruleVersion legacy-import-v0."
+  },
+  "case2_consent_violation": {
+    "anomalyId": "GT-CONSENT-VIOLATION-001",
+    "customerId": 20,
+    "consentCode": "CNS-000093",
+    "channel": "EMAIL",
+    "withdrawnAt": "2025-10-30 13:00:00",
+    "actionSlug": "promotional-discount",
+    "explanation": "A legacy campaign service emitted an ELIGIBLE promotional recommendation for a customer whose marketing consent was withdrawn. Consent must be enforced before eligibility.",
+    "injection": "Recommendation row inserted with sourcePipeline=legacy-campaign-service-v0 and eligibility=ELIGIBLE."
+  },
+  "case3_return_not_netted": {
+    "anomalyId": "GT-RETURN-NOT-NETTED-001",
+    "orderId": 90,
+    "orderCode": "ORD-2026-000090",
+    "customerId": 150,
+    "expectedReturnedAmount": "5266.00",
+    "actualReturnedAmount": "0.00",
+    "expectedNetTotal": "32806.70",
+    "actualNetTotal": "38072.70",
+    "affectedLines": 3,
+    "explanation": "Refunds exist on the order lines but the order header has returnedAmount = 0 and netTotal = grossTotal, so returned goods were not deducted from spend.",
+    "injection": "Order header returnedAmount/netTotal overwritten after line refunds were written."
+  },
+  "case4_outcome_attribution": {
+    "anomalyId": "GT-OUTCOME-ATTRIBUTION-001",
+    "targetOutcomeOrdinal": 1,
+    "explanation": "A downstream CRM webhook recorded an outcome against an action that does not match the action of the referenced recommendation, so the revenue cannot be attributed to the recommendation.",
+    "injection": "Outcome row written with an actionId that differs from recommendation.actionId."
+  }
+}
