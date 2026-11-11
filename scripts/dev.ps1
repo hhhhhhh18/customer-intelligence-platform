@@ -13,13 +13,13 @@ $root = Split-Path -Parent $PSScriptRoot
 & (Join-Path $PSScriptRoot 'db-start.ps1')
 
 if (-not $NoBackend) {
-  Start-Process -FilePath 'pwsh' -WorkingDirectory (Join-Path $root 'backend') `
+ Start-Process -FilePath 'powershell.exe' -WorkingDirectory (Join-Path $root 'backend') `
     -ArgumentList '-NoExit', '-Command', 'npm run dev' -WindowStyle Hidden
   Write-Host '[dev] backend starting on http://localhost:4000'
 }
 
 if (-not $NoFrontend) {
-  Start-Process -FilePath 'pwsh' -WorkingDirectory (Join-Path $root 'frontend') `
+  Start-Process -FilePath 'powershell.exe' -WorkingDirectory (Join-Path $root 'frontend') `
     -ArgumentList '-NoExit', '-Command', 'npm run dev' -WindowStyle Hidden
   Write-Host '[dev] frontend starting on http://localhost:3000'
 }

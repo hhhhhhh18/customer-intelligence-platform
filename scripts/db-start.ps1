@@ -21,7 +21,7 @@ if (-not $pgBin) {
     'C:\Program Files\PostgreSQL\15\bin'
   ) | Where-Object { Test-Path (Join-Path $_ 'pg_ctl.exe') }
   if (-not $candidates) { throw 'PostgreSQL binaries not found. Set $env:PG_BIN to the bin directory.' }
-  $pgBin = $candidates[0]
+  $pgBin = $candidates | Select-Object -First 1
 }
 
 if (-not (Test-Path $dataDir)) {
@@ -29,7 +29,8 @@ if (-not (Test-Path $dataDir)) {
   & (Join-Path $pgBin 'initdb.exe') -D $dataDir -U postgres --auth=trust --encoding=UTF8 --locale=C | Out-Null
 }
 
-$ready = & (Join-Path $pgBin 'pg_isready.exe') -h localhost -p $Port 2>&1
+$pgIsReady = Join-Path $pgBin 'pg_isready.exe'
+$ready = & "$pgIsReady" -h localhost -p $Port 2>&1
 if ($LASTEXITCODE -eq 0) {
   Write-Host "[db] cluster already accepting connections on port $Port"
 } else {
